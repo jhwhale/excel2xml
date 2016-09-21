@@ -1,16 +1,26 @@
-import xlrd, sys, traceback,re
-#from  xml.sax import saxutils 
+import xlrd, sys, traceback,re,os
 import HTMLParser
 from xml.dom import minidom
 reload(sys)
 sys.setdefaultencoding( "utf-8" )
 
-def get_xls_data(file, sheetIndex = 0, colNameIndex = 0):
-	xls = xlrd.open_workbook(file)
-	sheet = xls.sheets()[sheetIndex]
+def open_xls(file):
+	book = xlrd.open_workbook(file)
+	return book
+
+def get_sheets_info(book):
+	sheetNum = len(book.sheets())
+	sheetNames = []
+	for sheetIndex in range(sheetNum):
+		sheet_name=book.sheet_names()[sheetIndex]
+		sheetNames.append(sheet_name)
+	return sheetNum,sheetNames
+
+def get_sheet_data(book, sheetIndex = 0, colNameIndex = 0):
+	sheet = book.sheets()[sheetIndex]
 	nrows = sheet.nrows
 	ncols = sheet.ncols
-	colNames =  sheet.row_values(colNameIndex)
+	colNames =  sheet.row_values(colNameIndex)	
 	data = []
 	for rowIndex in range(1,nrows):
 		row = sheet.row_values(rowIndex)
@@ -39,17 +49,7 @@ def write_xml(data, xmlFile):
 				caseNode.appendChild(preconditionsNode)
 				preconditionsText = '<![CDATA[<p>'+re.sub('\s','</p><p>',data[i]['preconditions'])+'</p>]]>'
 				preconditionsTextNode = doc.createTextNode(preconditionsText)
-				preconditionsNode.appendChild(preconditionsTextNode)
-
-				# executiontypeNode = doc.createElement("executiontype")
-				# caseNode.appendChild(executiontypeNode)
-				# executiontypeNodeTextNode = doc.createTextNode('<![CDATA['+str(int(data[i]['executiontype']))+']]>')
-				# executiontypeNode.appendChild(executiontypeNodeTextNode)
-
-				# importanceNode = doc.createElement("importance")
-				# caseNode.appendChild(importanceNode)
-				# importanceNodeTextNode = doc.createTextNode('<![CDATA['+str(int(data[i]['importance']))+']]>')
-				# importanceNode.appendChild(importanceNodeTextNode)			
+				preconditionsNode.appendChild(preconditionsTextNode)		
 
 				stepsNode = doc.createElement("steps")
 				caseNode.appendChild(stepsNode)
@@ -92,10 +92,15 @@ def unescape_xml(xmlFile):
 
 
 def main():
-	tables = get_xls_data(sys.argv[1])
-	#print tables
-	write_xml(tables, "test.xml")
-	unescape_xml("test.xml")
+	savePath = os.path.split(sys.argv[1])[0]
+
+	xlsBook = open_xls(sys.argv[1])
+	sheet_num,sheet_names = get_sheets_info(xlsBook)
+	for i in range(sheet_num):
+		data = get_sheet_data(xlsBook,i)
+		xmlPath = savePath+"/"+sheet_names[i]+".xml"
+		write_xml(data, xmlPath)
+		unescape_xml(xmlPath)
 
 if __name__=="__main__":
 	main()
